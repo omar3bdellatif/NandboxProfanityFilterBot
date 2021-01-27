@@ -2,45 +2,43 @@ const { createRequire } = require("module");
 const NandBox = require("nandbox-bot-api/src/NandBox");
 const Nand = require("nandbox-bot-api/src/NandBoxClient");
 const NandBoxClient = Nand.NandBoxClient;
-
 const TextOutMessage = require("nandbox-bot-api/src/outmessages/TextOutMessage");
 const Utils = require("nandbox-bot-api/src/util/Utility");
 const Id = Utils.Id;
 
 const Filter = require("bad-words");
-
 const commands = require("./commands")
 const funcs = require("./funcs")
-const db = require("./db.js")
 
-//ChatId:{{badUserID,badUserName},{},{}}
+//Bot related
+const configFile = require("./config.json")
+const TOKEN = configFile.TOKEN.toString();
+//90091850437700960:0:Y2kMqpPXKYYqAveAJ1jKYQAc0sscTM PROD
+//90091784170452409:0:szMrvEDDq0JCKdZ4rpKeqePuQ4Ayco DEV
+//const TOKENB = "90091784170452409:0:szMrvEDDq0JCKdZ4rpKeqePuQ4Ayco"; 
+const config = {
+    URI: configFile.URI,
+    DownloadServer: configFile.DownloadServer,
+    UploadServer: configFile.UploadServer
+}
+const botId = TOKEN.substring(0,TOKEN.indexOf(':'))
+
+//Database related
+const db = require("./db.js")
+const dbPath = configFile.dbPath
+const database = new db(dbPath)
+
+
+
+
+
 let badUsers = {};
 let chatsToFilters = {}
 let defaultFilter = new Filter()
-
-
-//add to a JSON file and read the data from there
-const TOKEN = "90091850437700960:0:Y2kMqpPXKYYqAveAJ1jKYQAc0sscTM"
-const TOKENB = "90091784170452409:0:szMrvEDDq0JCKdZ4rpKeqePuQ4Ayco"; // replace it with your token
-const config = {
-    URI: "wss://w1.nandbox.net:5020/nandbox/api/",
-    DownloadServer: "https://w1.nandbox.net:5020/nandbox/download/",
-    UploadServer: "https://w1.nandbox.net:5020/nandbox/upload/"
-}
-const botId = TOKEN.substring(0,TOKEN.indexOf(':'))
-const dbPath = "../../db/bad_words.db"
-const database = new db(dbPath)
-
 var client = NandBoxClient.get(config);
 var nandbox = new NandBox();
 var nCallBack = nandbox.Callback;
 var api = null;
-
-async function myasync(promise)
-{
-    const x = await promise
-    return x
-}
 
 nCallBack.onConnect = (_api) => {
     // it will go here if the bot connected to the server successfuly 
@@ -51,9 +49,7 @@ nCallBack.onConnect = (_api) => {
     //get table names
     database.getTableNames().then((res)=>{
         let tableNames = res
-        console.log(tableNames)
         let chatIds = funcs.getChatIdsFromTableNames(tableNames)
-        console.log(chatIds)
 
         for(i in chatIds)
         {
@@ -68,9 +64,6 @@ nCallBack.onConnect = (_api) => {
             
         }
     })
-    
-
-
 }
 
 
@@ -99,10 +92,8 @@ nCallBack.onReceive = incomingMsg => {
             }
             else
             {
-                //initialize the chat object by an external function
                 badUsers[chatId] = {};
                 badUsers[chatId][userId] = userName
-                console.log(badUsers)
                 api.getChatAdministrators(chatId);
             }
             
@@ -144,7 +135,7 @@ nCallBack.onReceive = incomingMsg => {
                     break
                 
                 case "isBadWord":
-                    let candidateBadWord = funcs.getBadWords(incomingMsg.text,null)[0]
+                    let candidateBadWord = funcs.getBadWords(incomingMsg.text,null,null)[1][0]
                     if(filter.isProfane(candidateBadWord))
                     {
                         outmsg.text= `Word ${candidateBadWord} is a bad word`
@@ -158,24 +149,56 @@ nCallBack.onReceive = incomingMsg => {
                 case "addBadWords":
                     if(incomingMsg.from_admin === 1)
                     {
-                        let addedBadWords = funcs.getBadWords(incomingMsg.text,filter)
-                        database.addWords(chatId,addedBadWords)
-                        filter.addWords(...addedBadWords)
-                        chatsToFilters[chatId] = filter
-                        outmsg.text=`Words have been added to the list of bad words, you will be notified if anyone uses them`
+                        let filteredWords_words = funcs.getBadWords(incomingMsg.text,filter,null)
+                        let filteredBadWords = filteredWords_words[0]
+                        let addedBadWords = filteredWords_words[1]
+                        if(addedBadWords.length > 0 && filteredBadWords.length == 0)
+                        {
+                            database.addWords(chatId,addedBadWords)
+                            filter.addWords(...addedBadWords)
+                            chatsToFilters[chatId] = filter
+                            outmsg.text=`Words ${addedBadWords} have been added to the list of bad words, you will be notified if anyone uses them`
+                        }
+                        else if(addedBadWords.length > 0 && filteredBadWords.length > 0)
+                        {
+                            database.addWords(chatId,addedBadWords)
+                            filter.addWords(...addedBadWords)
+                            chatsToFilters[chatId] = filter
+                            outmsg.text=`Words ${addedBadWords} have been added to the list of bad words, you will be notified if anyone uses them\nWords ${filteredBadWords} are already listed as bad words`
+                        }
+                        else
+                        {   
+                            outmsg.text=`All these words are already listed as bad words`    
+                        }
+                        
                     }
                     break
 
                 case "removeBadWords":
                     if(incomingMsg.from_admin === 1)
                     {
-                        let removedBadWords = funcs.getBadWords(incomingMsg.text,defaultFilter)
-                        //removedBadWords = funcs.filterArr(removedBadWords,resIn)
-                        database.removeWords(chatId,removedBadWords)
-                        filter.removeWords(...removedBadWords)
-                        chatsToFilters[chatId] = filter
-
-                        outmsg.text=`Words have been removed from the list of bad words, you will no longer be notified if anyone uses them`
+                        let filteredWords_words = funcs.getBadWords(incomingMsg.text,defaultFilter,filter)
+                        let filteredBadWords = filteredWords_words[0]
+                        let removedBadWords = filteredWords_words[1]
+                        if(removedBadWords.length > 0 && filteredBadWords.length == 0)
+                        {
+                            database.removeWords(chatId,removedBadWords)
+                            filter.removeWords(...removedBadWords)
+                            chatsToFilters[chatId] = filter
+                            outmsg.text=`Words ${removedBadWords} have been removed from the list of bad words, you will no longer be notified if anyone uses them`
+                        }
+                        else if(removedBadWords.length > 0 && filteredBadWords.length == 0)
+                        {
+                            database.removeWords(chatId,removedBadWords)
+                            filter.removeWords(...removedBadWords)
+                            chatsToFilters[chatId] = filter
+                            outmsg.text=`Words ${removedBadWords} have been removed from the list of bad words, you will no longer be notified if anyone uses them\nWords ${filteredBadWords} have not been removed, as they are curse words`
+                        }
+                        else
+                        {
+                            outmsg.text=`No words were removed as they are all curse words or not listed as bad words`
+                        }
+                        
                     }
                     break
                 
@@ -227,8 +250,6 @@ nCallBack.onReceive = incomingMsg => {
             {
                 let badUserId = Object.keys(badUsers[chatId])[0];
                 let badUserName = badUsers[chatId][badUserId];
-                console.log(badUserId)
-                console.log(badUserName)
 
                 if(/1\s*/.test(msgText))
                 {
@@ -304,6 +325,12 @@ nCallBack.onReceive = incomingMsg => {
 // implement other nandbox.Callback() as per your bot need
 nCallBack.onReceiveObj = obj => {
     console.log("received object: ", obj);
+    if(obj.method == 'groupDeleted')
+    {
+        let chatId = obj.group_id
+        database.dropTable(chatId)
+        delete chatsToFilters[chatId]
+    }
 }
 
 nCallBack.onClose = () => { }

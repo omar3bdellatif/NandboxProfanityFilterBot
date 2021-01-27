@@ -1,16 +1,37 @@
-checkBadWords = (words,filter) => {
-    for( i = 0; i < words.length; i++){ 
+checkBadWords = (words,filter,mode='filterOut') => {
+    let filtered = []
 
-        if (filter.isProfane(words[i])) { 
-            words.splice(i, 1); 
-            i--
+    if(mode === 'filterOut')
+    {
+        for( i = 0; i < words.length; i++){ 
+
+            if (filter.isProfane(words[i])) { 
+                filtered.push(words[i])
+                words.splice(i, 1); 
+                i--
+            }
+        
         }
-    
     }
-    return words
+    else if(mode === 'filterIn')
+    {
+        for( i = 0; i < words.length; i++){ 
+
+            if (!filter.isProfane(words[i])) { 
+                filtered.push(words[i])
+                words.splice(i, 1); 
+                i--
+            }
+        
+        }
+    }
+    
+    console.log(filtered)
+    console.log(words)
+    return [filtered,words]
 }
 
-exports.getBadWords = (commandString,filter) => {
+exports.getBadWords = (commandString,filterA,filterB) => {
     commandString = commandString.replace(/\s+/g," ");
     let words = commandString.split(",")
     console.log(words[0])
@@ -19,11 +40,16 @@ exports.getBadWords = (commandString,filter) => {
     {
         words[word] = words[word].replace(/\s+/,"")
     }
-    if(filter != null)
+    let filteredWords_words = [[],words]
+    if(filterA != null)
     {
-        words = checkBadWords(words,filter)
+        filteredWords_words = checkBadWords(words,filterA)
     }
-    return words
+    if(filterB != null)
+    {
+        filteredWords_words = checkBadWords(filteredWords_words[1],filterB,'filterIn')
+    }
+    return filteredWords_words
 }
 
 exports.getChatIdsFromTableNames = tableNames => {
