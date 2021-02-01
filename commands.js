@@ -23,6 +23,11 @@ const commands = {
         regex:/^\/clearExtraBadWords\s*$/,
         msg:`Removed bad words added by admins from this chat`
     }
+    ,
+    listExtraBadWords:{
+        regex:/^\/listExtraBadWords\s*$/,
+        msg:null
+    }
 }
 
 module.exports = commands;

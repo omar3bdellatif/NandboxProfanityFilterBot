@@ -125,6 +125,7 @@ nCallBack.onReceive = incomingMsg => {
                 reference = Id()
                 outmsg.reference = reference;
                 outmsg.to_user_id = incomingMsg.from.id;
+            let msgSent = false
             
            
 
@@ -201,7 +202,17 @@ nCallBack.onReceive = incomingMsg => {
                         
                     }
                     break
-                
+                case "listExtraBadWords":
+                    if(incomingMsg.from_admin === 1)
+                    {
+                        database.getAllBadWords(chatId).then((resIn)=>{
+                            let extraBadWords = resIn
+                            outmsg.text = `Extra bad words are ${extraBadWords}`
+                            api.send(JSON.stringify(outmsg));
+                            msgSent = true
+                        })
+                    }
+                    break
 
                 case "clearExtraBadWords":
                     if(incomingMsg.from_admin === 1)
@@ -237,7 +248,11 @@ nCallBack.onReceive = incomingMsg => {
                 default:
                     break
             }
-            api.send(JSON.stringify(outmsg));
+            if(!msgSent)
+            {
+                api.send(JSON.stringify(outmsg));
+            }
+            
         }
 
         
@@ -256,13 +271,14 @@ nCallBack.onReceive = incomingMsg => {
                     //Warn
                     console.log("Warn");
                     let outmsg = new TextOutMessage();
-                    outmsg.chat_settings = 1;
+                    //outmsg.chat_settings = 1;
                     outmsg.chat_id = chatId;
-                    outmsg.text = `Hello ${badUserName}, Please don't use foul language in this channel again, as this is against our rules. Further usage of such language might result in you getting removed or banned from the channel`;
+                    outmsg.text = `Hello ${badUserName}, Please don't use foul language in this channel again, as this is against our rules. Further usage of such language might result in you getting removed or banned from the group`;
                     reference = Id();
                     outmsg.reference = reference;
                     outmsg.to_user_id = badUserId;
                     api.send(JSON.stringify(outmsg));
+                    console.log(outmsg)
 
                 }
                 else if(/2\s*/.test(msgText))
@@ -270,7 +286,7 @@ nCallBack.onReceive = incomingMsg => {
                     //Remove
                     console.log("Remove");
                     let outmsg = new TextOutMessage()
-                    outmsg.chat_settings = 1
+                    //outmsg.chat_settings = 1
                     outmsg.chat_id = chatId;
                     outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been removed from this channel due to using foul language`;
                     reference = Id()
@@ -285,7 +301,7 @@ nCallBack.onReceive = incomingMsg => {
                     //Ban
                     console.log("Ban");
                     let outmsg = new TextOutMessage()
-                    outmsg.chat_settings = 1
+                    //outmsg.chat_settings = 1
                     outmsg.chat_id = chatId;
                     outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been banned from this channel due to using foul language`;
                     reference = Id()
