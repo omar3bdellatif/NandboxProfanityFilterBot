@@ -38,7 +38,9 @@ exports.getBadWords = (commandString,filterA,filterB) => {
     words[0] = words[0].split(/\s(.*)/,2)[1]
     for (word in words)
     {
-        words[word] = words[word].replace(/\s+/,"")
+        //words[word] = words[word].replace(/\s+/,"")
+        words[word] = words[word].replace(/^\s+/,"")
+        words[word] = words[word].replace(/\s+$/,"")
     }
     let filteredWords_words = [[],words]
     if(filterA != null)

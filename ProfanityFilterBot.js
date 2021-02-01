@@ -207,7 +207,15 @@ nCallBack.onReceive = incomingMsg => {
                     {
                         database.getAllBadWords(chatId).then((resIn)=>{
                             let extraBadWords = resIn
-                            outmsg.text = `Extra bad words are ${extraBadWords}`
+                            if(extraBadWords.length != 0)
+                            {
+                                outmsg.text = `Extra bad words are: (${extraBadWords})`
+                            }
+                            else
+                            {
+                                outmsg.text = `There are no extra bad words.`
+                            }
+                            
                             api.send(JSON.stringify(outmsg));
                             msgSent = true
                         })
