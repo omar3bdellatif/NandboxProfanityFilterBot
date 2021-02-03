@@ -1,7 +1,7 @@
 {
-    "TOKEN": "90091850437700960:0:Y2kMqpPXKYYqAveAJ1jKYQAc0sscTM",
+    "TOKEN": "90091850437700960:0:AwZwzyGNmVUJBLLuw1MnEDon6P2dCp",
     "URI": "wss://w1.nandbox.net:5020/nandbox/api/",
     "DownloadServer": "https://w1.nandbox.net:5020/nandbox/download/",
     "UploadServer": "https://w1.nandbox.net:5020/nandbox/upload/",
-    "dbPath":"../../../db/bad_words.db"
+    "dbPath":"./bad_words.db"
 }
