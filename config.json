@@ -1,7 +1,7 @@
 {
-    "TOKEN": "90091850437700960:0:AwZwzyGNmVUJBLLuw1MnEDon6P2dCp",
-    "URI": "wss://w1.nandbox.net:5020/nandbox/api/",
-    "DownloadServer": "https://w1.nandbox.net:5020/nandbox/download/",
-    "UploadServer": "https://w1.nandbox.net:5020/nandbox/upload/",
-    "dbPath":"./bad_words.db"
+    "TOKEN": "90091783884658197:0:Ndi9XMydI8aqdMhA5gsojDMW4Si0a4",
+    "URI": "wss://d1.nandbox.net:5020/nandbox/api/",
+    "DownloadServer": "https://d1.nandbox.net:5020/nandbox/download/",
+    "UploadServer": "https://d1.nandbox.net:5020/nandbox/upload/",
+    "dbPath": "./bad_words.db"
 }
