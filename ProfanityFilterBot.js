@@ -13,9 +13,6 @@ const funcs = require("./funcs")
 //Bot related
 const configFile = require("./config.json")
 const TOKEN = configFile.TOKEN.toString();
-//90091850437700960:0:Y2kMqpPXKYYqAveAJ1jKYQAc0sscTM PROD
-//90091784170452409:0:szMrvEDDq0JCKdZ4rpKeqePuQ4Ayco DEV
-//const TOKENB = "90091784170452409:0:szMrvEDDq0JCKdZ4rpKeqePuQ4Ayco"; 
 const config = {
     URI: configFile.URI,
     DownloadServer: configFile.DownloadServer,
@@ -42,28 +39,31 @@ var api = null;
 
 nCallBack.onConnect = (_api) => {
     // it will go here if the bot connected to the server successfuly 
-
+    
     api = _api;
     console.log("Authenticated");
 
-    //get table names
-    database.getTableNames().then((res)=>{
-        let tableNames = res
-        let chatIds = funcs.getChatIdsFromTableNames(tableNames)
+    database.createTable().then(()=>{
+        //get table names
+        database.getChatIds().then((res)=>{
 
-        for(i in chatIds)
-        {
-            let chatId = chatIds[i]
-            let filter = new Filter()
-            //access the db to find bad words associated with this chatId
-            database.getAllBadWords(chatId).then((resIn)=>{
-                let badWordsArr = resIn
-                filter.addWords(...badWordsArr)
-                chatsToFilters[chatId] = filter
-            })
-            
-        }
+            let chatIds = res
+
+            for(i in chatIds)
+            {
+                let chatId = chatIds[i]
+                let filter = new Filter()
+                //access the db to find bad words associated with this chatId
+                database.getAllBadWords(chatId).then((resIn)=>{
+                    let badWordsArr = resIn
+                    filter.addWords(...badWordsArr)
+                    chatsToFilters[chatId] = filter
+                })
+                
+            }
+        })
     })
+    
 }
 
 
@@ -75,7 +75,6 @@ nCallBack.onReceive = incomingMsg => {
     {
         filter = new Filter()
         chatsToFilters[chatId] = filter
-        database.createTable(chatId)
     }
     
     if (incomingMsg.isTextMsg() && filter.isProfane(incomingMsg.text) && incomingMsg.from_admin !== 1 && incomingMsg.chat_settings !== 1 && incomingMsg.chat.type=="Group") {
@@ -148,6 +147,7 @@ nCallBack.onReceive = incomingMsg => {
                     break
                     
                 case "addBadWords":
+                   
                     if(incomingMsg.from_admin === 1)
                     {
                         let filteredWords_words = funcs.getBadWords(incomingMsg.text,filter,null)
@@ -279,9 +279,8 @@ nCallBack.onReceive = incomingMsg => {
                     //Warn
                     console.log("Warn");
                     let outmsg = new TextOutMessage();
-                    //outmsg.chat_settings = 1;
                     outmsg.chat_id = chatId;
-                    outmsg.text = `Hello ${badUserName}, Please don't use foul language in this channel again, as this is against our rules. Further usage of such language might result in you getting removed or banned from the group`;
+                    outmsg.text = `Hello ${badUserName}, Please don't use foul language in this group again, as this is against our rules. Further usage of such language might result in you getting removed or banned from the group`;
                     reference = Id();
                     outmsg.reference = reference;
                     outmsg.to_user_id = badUserId;
@@ -294,9 +293,8 @@ nCallBack.onReceive = incomingMsg => {
                     //Remove
                     console.log("Remove");
                     let outmsg = new TextOutMessage()
-                    //outmsg.chat_settings = 1
                     outmsg.chat_id = chatId;
-                    outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been removed from this channel due to using foul language`;
+                    outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been removed from this group due to using foul language`;
                     reference = Id()
                     outmsg.reference = reference;
                     outmsg.to_user_id = badUserId;
@@ -309,9 +307,8 @@ nCallBack.onReceive = incomingMsg => {
                     //Ban
                     console.log("Ban");
                     let outmsg = new TextOutMessage()
-                    //outmsg.chat_settings = 1
                     outmsg.chat_id = chatId;
-                    outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been banned from this channel due to using foul language`;
+                    outmsg.text = `Hello ${badUserName}, we regret to inform you that you have been banned from this group due to using foul language`;
                     reference = Id()
                     outmsg.reference = reference;
                     outmsg.to_user_id = badUserId;
@@ -352,7 +349,6 @@ nCallBack.onReceiveObj = obj => {
     if(obj.method == 'groupDeleted')
     {
         let chatId = obj.group_id
-        database.dropTable(chatId)
         delete chatsToFilters[chatId]
     }
 }
@@ -372,15 +368,17 @@ nCallBack.onChatMember = chatMember => {
         if(chatMember.chat.type === 'Group' && chatMember.type === 'Admin')
         {
             
-            database.createTable(chatId)
             //create a new filter
             let filter = new Filter()
-            chatsToFilters[chatId] = filter
+            database.getAllBadWords(chatId).then((resIn)=>{
+                let badWordsArr = resIn
+                filter.addWords(...badWordsArr)
+                chatsToFilters[chatId] = filter
+            })
 
         }
         else
         {
-            database.dropTable(chatId)
             delete chatsToFilters[chatId]
         }
         

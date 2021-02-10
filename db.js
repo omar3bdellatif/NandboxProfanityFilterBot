@@ -14,69 +14,43 @@ class dataBase {
         })
     }
 
-    all(sql)
+    createTable()
     {
-        return new Promise((resolve,reject) => {
-            this.db.all(sql,(err,rows)=>{
-                if(err)
-                {
-                    reject(err.message)
-                }
-                let result = new Array()
-                rows.forEach((row) =>{
-                    result.push(row.word)
-                })
-                resolve(result)
-            })
-        })
-    }
-
-    run(sql,msg)
-    {   
-        return new Promise((resolve,reject) => {
-            this.db.run(sql,(err) =>{
-                if(err)
-                {
-                    reject(err.message)
-                }
-                resolve(msg)
-            })
-        })
-    }
-
-    createTable(chatId)
-    {
-        let sql = `CREATE TABLE IF NOT EXISTS Table${chatId} (
+        let sql = `CREATE TABLE IF NOT EXISTS recordedBadWords (
+                    chatId varchar(255) NOT NULL,
                     words varchar(255) NOT NULL,
-                    PRIMARY KEY (words)
+                    PRIMARY KEY (chatId,words)
                     );`
+
+        return new Promise((resolve,reject) => {
+            this.db.run(sql,(err)=>{
+                if(err)
+                {
+                    reject(err.message)
+                }
+                resolve();
+            })
+        })
         this.db.run(sql,(err)=>{
             if(err)
             {
                 return console.log(err.message)
             }
-            console.log(`Table Table${chatId} has been created successfully`)
+            console.log(`Table has been created successfully`)
         })
     }
 
-    addWord(chatId,word)
-    {
-        let sql = `INSERT INTO Table${chatId}(words) VALUES("${word}")`
-        this.db.run(sql,(err) =>{
-            if(err)
-            {
-                return console.log(err.message)
-            }
-            console.log(`Word ${word} has been registered as a bad word for chat with ID ${chatId}`)
-        })
-    }
 
     addWords(chatId,words)
     {
-        let placeholders = words.map((word) => '(?)').join(',');
-        let sql = `INSERT INTO Table${chatId}(words) VALUES ${placeholders}`;
+        let sql = `insert into recordedBadWords values `
+        for(let i in words)
+        {
+            sql += `("${chatId}","${words[i]}"),`
+        }
+        sql = sql.slice(0,sql.length-1)
 
-        this.db.run(sql,words,(err) =>{
+        this.db.run(sql,(err) =>{
             if(err)
             {
                 return console.log(err.message)
@@ -88,22 +62,10 @@ class dataBase {
 
 
 
-    removeWord(chatId,word)
-    {
-        let sql = `DELETE FROM Table${chatId} where words = "${word}"`
-        this.db.run(sql,(err) =>{
-            if(err)
-            {
-               return console.log(err.message)
-            }
-            console.log(`Word ${word} has been removed from the list of bad words for chat with ID ${chatId}`)
-        })
-    }
-
     removeWords(chatId,words)
     {
         let placeholders = words.map((word) => '?').join(',');
-        let sql = `DELETE FROM Table${chatId} WHERE words IN (${placeholders})`;
+        let sql = `DELETE FROM recordedBadWords WHERE words IN (${placeholders}) AND chatId = "${chatId}"`;
 
         this.db.run(sql,words,(err) =>{
             if(err)
@@ -115,9 +77,10 @@ class dataBase {
     }
 
 
+
     getAllBadWords(chatId)
     {
-        let sql = `SELECT words word FROM Table${chatId}`
+        let sql = `SELECT words word FROM recordedBadWords where chatId = "${chatId}"`
 
         return new Promise((resolve,reject) => {
             this.db.all(sql,(err,rows)=>{
@@ -134,21 +97,9 @@ class dataBase {
         })
     }
 
-    dropTable(chatId)
-    {
-        let sql = `DROP TABLE Table${chatId}`
-        this.db.run(sql,(err) =>{
-            if(err)
-            {
-               return console.log(err.message)
-            }
-            console.log(`Table Table${chatId} has been dropped successfully`)
-        })
-    }
-
     clearBadWords(chatId)
     {
-        let sql = `DELETE FROM Table${chatId}`
+        let sql = `DELETE FROM recordedBadWords where chatId = "${chatId}"`
         this.db.run(sql,(err) =>{
             if(err)
             {
@@ -158,19 +109,19 @@ class dataBase {
         })
     }
 
-    getTableNames(){
-        let sql = 'SELECT name FROM sqlite_master WHERE type="table"'
+    getChatIds(){
+        let sql = 'select distinct chatId chatid from recordedBadWords'
         return new Promise((resolve,reject) => {
             this.db.all(sql,(err,rows)=>{
                 if(err)
                 {
                     reject(err.message)
                 }
-                let tableNames = new Array()
+                let chatIds = new Array()
                 rows.forEach((row) =>{
-                    tableNames.push(row.name)
+                    chatIds.push(row.chatid)
                 })
-                resolve(tableNames)
+                resolve(chatIds)
             })
         })
     }
