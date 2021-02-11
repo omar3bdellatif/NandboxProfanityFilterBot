@@ -3,6 +3,7 @@ const NandBox = require("nandbox-bot-api/src/NandBox");
 const Nand = require("nandbox-bot-api/src/NandBoxClient");
 const NandBoxClient = Nand.NandBoxClient;
 const TextOutMessage = require("nandbox-bot-api/src/outmessages/TextOutMessage");
+const UpdateOutMessage = require("nandbox-bot-api/src/outmessages/UpdateOutMessage");
 const Utils = require("nandbox-bot-api/src/util/Utility");
 const Id = Utils.Id;
 
@@ -25,11 +26,14 @@ const db = require("./db.js")
 const dbPath = configFile.dbPath
 const database = new db(dbPath)
 
-
+const Button = require("nandbox-bot-api/src/data/Button");
+const Row = require("nandbox-bot-api/src/data/Row");
+const Menu = require("nandbox-bot-api/src/data/Menu");
 
 
 
 let badUsers = {};
+let actionNotTaken = {};
 let chatsToFilters = {}
 let defaultFilter = new Filter()
 var client = NandBoxClient.get(config);
@@ -81,18 +85,23 @@ nCallBack.onReceive = incomingMsg => {
 
             let userId = incomingMsg.from.id;
             let userName = incomingMsg.from.name;
-            if(chatId in badUsers)
+            if(!(chatId in actionNotTaken && actionNotTaken[chatId].includes(userId)))
             {
-                if(!(userId in badUsers[chatId]))
+                if(chatId in badUsers)
                 {
-                    badUsers[chatId][userId] = userName
+                    if(!(userId in badUsers[chatId]))
+                    {
+                        badUsers[chatId][userId] = userName
+                    }
+                        
                 }
+                else
+                {
+                    badUsers[chatId] = {};
+                    badUsers[chatId][userId] = userName
                     
-            }
-            else
-            {
-                badUsers[chatId] = {};
-                badUsers[chatId][userId] = userName
+                }
+                
                 api.getChatAdministrators(chatId);
             }
             
@@ -234,24 +243,6 @@ nCallBack.onReceive = incomingMsg => {
                         outmsg.text = commands[commandKey].msg
                     }
                     break
-                
-                /*case "clearAllBadWords":
-                    if(incomingMsg.from_admin === 1)
-                    {
-                        filter = new Filter({ emptyList: true });
-                        chatsToFilters[chatId] = filter
-                        outmsg.text = commands[commandKey].msg
-                    }
-                    break*/
-                
-                /*case "addDefaultBadWords":
-                    if(incomingMsg.from_admin === 1)
-                    {
-                        filter = new Filter();
-                        chatsToFilters[chatId] = filter
-                        outmsg.text = commands[commandKey].msg
-                    }
-                    break*/
 
                 default:
                     break
@@ -266,7 +257,7 @@ nCallBack.onReceive = incomingMsg => {
         
 
         else if(chatId in badUsers && incomingMsg.from_admin === 1 && incomingMsg.chat.type=="Group"){
-            let pattern = /[1-3]\s*/
+            //let pattern = /[1-3]\s
             let msgText = incomingMsg.text;
 
             if(pattern.test(msgText))
@@ -356,7 +347,89 @@ nCallBack.onReceiveObj = obj => {
 nCallBack.onClose = () => { }
 nCallBack.onError = () => { }
 nCallBack.onChatMenuCallBack = chatMenuCallback => {}
-nCallBack.onInlineMessageCallback = inlineMsgCallback => {}
+nCallBack.onInlineMessageCallback = inlineMsgCallback => {
+    let chatId = inlineMsgCallback.chat.id;
+    let reference = inlineMsgCallback.reference;
+    let callBack = inlineMsgCallback.button_callback;
+    let toUserId = inlineMsgCallback.from.id;
+    let badUserId = callBack.slice(callBack.indexOf("_")+1);
+ 
+
+    if(chatId in actionNotTaken && actionNotTaken[chatId].includes(badUserId))
+    {
+        if(callBack.startsWith("Warn"))
+        {
+            console.log("Warn");
+            badUserId = callBack.slice(callBack.indexOf("_")+1);
+            let outmsg = new TextOutMessage();
+            outmsg.chat_id = chatId;
+            outmsg.text = `Please don't use foul language in this group again, as this is against our rules. Further usage of such language might result in you getting removed or banned from the group`;
+            let reference = Id();
+            outmsg.reference = reference;
+            outmsg.to_user_id = badUserId;
+            api.send(JSON.stringify(outmsg));
+            console.log(outmsg)
+
+
+            
+        }
+        else if(callBack.startsWith("Remove"))
+        {
+            console.log("Remove");
+            badUserId = callBack.slice(callBack.indexOf("_")+1);
+            let outmsg = new TextOutMessage();
+            outmsg.chat_id = chatId;
+            outmsg.text = `We regret to inform you that you have been removed from this group due to using foul language`;
+            let reference = Id();
+            outmsg.reference = reference;
+            outmsg.to_user_id = badUserId;
+            api.send(JSON.stringify(outmsg));
+            api.removeChatMember(chatId,badUserId);
+            console.log(outmsg)
+        }
+        else if(callBack.startsWith("Ban"))
+        {
+            console.log("Ban");
+            badUserId = callBack.slice(callBack.indexOf("_")+1);
+            let outmsg = new TextOutMessage();
+            outmsg.chat_id = chatId;
+            outmsg.text = `We regret to inform you that you have been banned from this group due to using foul language`;
+            let reference = Id();
+            outmsg.reference = reference;
+            outmsg.to_user_id = badUserId;
+            api.send(JSON.stringify(outmsg));
+            api.banChatMember(chatId,badUserId);
+            console.log(outmsg)
+        }
+
+
+        
+        //delete badUsers[chatId][badUserId]
+        console.log(actionNotTaken[chatId].indexOf(badUserId))
+        console.log(actionNotTaken)
+        actionNotTaken[chatId].splice(actionNotTaken[chatId].indexOf(badUserId),1);
+        console.log(actionNotTaken)
+        if((actionNotTaken[chatId]).length === 0){
+            delete actionNotTaken[chatId]
+        }
+        console.log(actionNotTaken)
+
+        let msgId = inlineMsgCallback.message_id;
+        let reference = inlineMsgCallback.reference;
+
+        let updateMsg = new UpdateOutMessage();
+        updateMsg.message_id = msgId;
+        updateMsg.chat_id=chatId;
+        updateMsg.reference=reference;
+        updateMsg.to_user_id=toUserId;
+        updateMsg.text = "Action has been taken";
+        api.send(JSON.stringify(updateMsg));
+    }
+
+
+    
+    
+}
 nCallBack.onMessagAckCallback = msgAck => {}
 nCallBack.onUserJoinedBot = user => {}
 
@@ -394,10 +467,57 @@ nCallBack.onChatAdministrators = chatAdministrators => {
     let badUserName = badUsers[chatId][badUserId]
 
 
+    if(chatId in actionNotTaken)
+    {
+        if(!(badUserId in actionNotTaken[chatId]))
+        {
+            actionNotTaken[chatId].push(badUserId);
+        }
+            
+    }
+    else
+    {
+        actionNotTaken[chatId] = [];
+        actionNotTaken[chatId].push(badUserId);
+        
+    }
+
+
+    delete badUsers[chatId][badUserId]
+    if(Object.keys(badUsers[chatId]).length === 0){
+        delete badUsers[chatId]
+    }
+
+
+
+
+    
+
     let outmsg = new TextOutMessage()
     outmsg.chat_settings = 1
     outmsg.chat_id = chatAdministrators.chat.id;
-    outmsg.text = `User ${badUserName} has said a bad word\nWhat would you like to do?\n1-Warn\n2-Remove\n3-Ban`;
+    outmsg.text = `User ${badUserName} has said a bad word\nWhat would you like to do?`;
+
+
+
+    let row1ButtonsDecisionMenu = [
+        funcs.createButton("Warn",`Warn_${badUserId}`,1,"lightgrey","black",null,null,null,1),
+        funcs.createButton(`Remove`,`Remove_${badUserId}`,2,"lightgrey","black",null,null,null,1),
+        funcs.createButton(`Ban`,`Ban_${badUserId}`,3,"lightgrey","black",null,null,null,1)
+    ]
+
+    
+    let rowsDecisionMenu = [new Row(row1ButtonsDecisionMenu,1)]
+    let DecisionMenu = [new Menu(rowsDecisionMenu,'decisionMenu')]
+
+    outmsg.inline_menu = DecisionMenu;
+    outmsg.menu_ref = "decisionMenu"
+    
+
+
+
+
+
     for (admin in admins){
         reference = Id()
         outmsg.reference = reference;
@@ -405,6 +525,8 @@ nCallBack.onChatAdministrators = chatAdministrators => {
         api.send(JSON.stringify(outmsg));
     }
     
+    console.log(actionNotTaken)
+
  }
 
 

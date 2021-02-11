@@ -1,3 +1,8 @@
+const Button = require("nandbox-bot-api/src/data/Button");
+const Row = require("nandbox-bot-api/src/data/Row");
+const Menu = require("nandbox-bot-api/src/data/Menu");
+const SetNavigationButtonOutMessage = require("nandbox-bot-api/src/outmessages/SetNavigationButtonOutMessage");
+
 checkBadWords = (words,filter,mode='filterOut') => {
     let filtered = []
 
@@ -69,4 +74,39 @@ exports.filterArr = (src,filterArr) =>{
         }
     }
     return results
+}
+
+exports.createButton = (
+    label,
+    callback,
+    order,
+    bgColor,
+    txtColor,
+    buttonURL,
+    buttonQuery,
+    nextMenuRef,
+    span
+  ) => {
+    let btn = new Button();
+  
+    btn.button_label = label;
+    btn.button_order = order;
+    btn.button_callback = callback;
+    btn.button_bgcolor = bgColor;
+    btn.button_textcolor = txtColor;
+    btn.button_query = buttonQuery;
+    btn.next_menu = nextMenuRef;
+    btn.button_url = buttonURL;
+    btn.button_span = span | 1;
+  
+    return btn;
+  }
+
+
+exports.createRow = (buttons,order) =>{
+    return new Row(buttons,order);
+}
+
+exports.createStartMenu = (rows,menuRef) =>{
+    return new Menu(rows,menuRef);
 }
